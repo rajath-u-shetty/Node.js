@@ -1,65 +1,97 @@
 const express = require("express");
-const users = require("./MOCK_DATA.json");
-const fs = require("fs")
+const mongoose = require("mongoose");
+const fs = require("fs");
 
 const app = express();
 const port = 3000;
 
+//schema
+const userSchema = new mongoose.Schema({
+  firstName: {
+    type: String,
+    required: true,
+  },
+  lastName: {
+    type: String,
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  gender: {
+    type: String,
+  },
+  jobTitle: {
+    type: String,
+  },
+}, 
+  { timestamps: true }
+);
+
+mongoose
+  .connect("mongodb://127.0.0.1:27017/practice-1")
+  .then(() => console.log("MongoDB connected"))
+  .catch((err) => console.log("Mongo Error",err));
+
+const User = mongoose.model("user", userSchema);
+
 app.use(express.urlencoded({ extended: false }));
 
-app.get("/users", (req, res) => {
-    const html = `
+app.get("/users", async (req, res) => {
+  const allDbUsers = await User.find({})
+  const html = `
         <ul>
-            ${users.map((user) => `<li>${user.first_name}</li>`).join("")}
+            ${allDbUsers.map((user) => `<li>${user.firstName} - ${user.email}</li>`).join("")}
         </ul>
-    `
-    return res.send(html)
-})
+    `;
+  return res.send(html);
+});
 
-app.get("/api/users", (req, res) => {
-    return res.json(users);
+app.get("/api/users",async (req, res) => {
+  const allDbUsers = await User.find({})
+  return res.json(allDbUsers);
 });
 
 app
-    .route("/api/users/:id")
-    .get((req, res) => {
-        const id = Number(req.params.id);
-        const user = users.find((user) => user.id === id);
-        if(!user) return res.status(404).json({ error: "user Not-Found"})
-        return res.json(user);
-    })
-    .patch((req, res) => {
-        const body = req.body;
-        const id = Number(req.params.id);
-        const popId = users.findIndex((user) => user.id === id)
-        if(popId != -1){
-        users[popId] = {...users[popId], ...body}
-        fs.writeFile("./MOCK_DATA.json", JSON.stringify(users), (err, data) => {
-            return console.log("success");
-        }
-    )}
-    })
-    .delete((req, res) => {
-        const id = Number(req.params.id);
-        const popId = users.findIndex((user) => user.id === id)
-        console.log(popId);
-        if (popId !== -1) {
-            users.splice(popId, 1);
-                fs.writeFile("./MOCK_DATA.json", JSON.stringify(users), (err, req) => {
-                    return console.log("success");
-            })
-        }
-    });
+  .route("/api/users/:id")
+  .get(async(req, res) => {
+    const user = await User.findById(req.params.id)
+    if (!user) return res.status(404).json({ error: "user Not-Found" });
+    return res.json(user);
+  })
+  .patch(async(req, res) => {
+    await User.findByIdAndUpdate(req.params.id, {lastName: "shetty"})
+    return res.status(200).json({ msg: "success"})
+  })
+  .delete(async(req, res) => {
+    await User.findByIdAndDelete(req.params.id)
+    return res.status(200).json({ msg: "success"})
+  });
 
+app.post("/api/users",async (req, res) => {
+  const body = req.body;
+  if (
+    !body ||
+    !body.first_name ||
+    !body.last_name ||
+    !body.email ||
+    !body.gender ||
+    !body.job_title
+  ){
+    return res.status(400).json({ msg: "All fields are required.."})
+  }
+  
+  const result = await User.create({
+  firstName: body.first_name,
+  lastName: body.last_name,
+  email: body.email,
+  gender: body.gender,
+  jobTitle: body.job_title,
+  });
+  console.log("result", result);
+  return res.status(201).json({ msg: "success"});
 
-app.post("/api/users", (req, res) => {
-    const body = req.body;
-    if(!body || !body.first_name || body.last_name || body.email || body.gender || body.job_title){
-    users.push({...body, id: users.length + 1});
-    fs.writeFile("./MOCK_DATA.json", JSON.stringify(users), (err, data)=>{
-        return res.status(201).json({status: "success"})
-    })}    
-})
+});
 
-
-app.listen(port, ()=> console.log("server started"));
+app.listen(port, () => console.log("server started"));
