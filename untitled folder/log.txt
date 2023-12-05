@@ -1,5 +1,0 @@
-
-1701520551087: ::1 GET: /api/users/656ab456620582e0d9dc33cc
-1701520574471: ::1 GET: /api/users/656ab456620582e0d9dc33cc
-1701520583176: ::1 GET: /api/users
-1701520641737: ::1 POST: /api/users
